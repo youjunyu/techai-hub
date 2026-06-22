@@ -1,5 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
+import { generateNewsSummary } from '@/lib/ai-summary'
+
+// Helper to save a news item with AI summary
+async function saveNewsItem(item: { title: string; url: string; source: string; category: string; importance: number; summary?: string }) {
+  const aiSummary = await generateNewsSummary(item.title, item.summary || '')
+  const { error } = await supabaseAdmin.from('tai_news').upsert({
+    title: item.title,
+    url: item.url,
+    source: item.source,
+    category: item.category,
+    importance: item.importance,
+    summary: aiSummary || item.summary,
+    published_at: new Date().toISOString(),
+  }, { onConflict: 'url' })
+  return !error
+}
 
 interface CrawlResult {
   source: string
@@ -110,17 +126,7 @@ async function crawlJiQizhixin(): Promise<CrawlResult> {
 
     let saved = 0
     for (const article of articles) {
-      try {
-        const { error } = await supabaseAdmin.from('tai_news').upsert({
-          title: article.title,
-          url: article.url,
-          source: '机器之心',
-          category: 'AI算力',
-          importance: 3,
-          published_at: new Date().toISOString(),
-        }, { onConflict: 'url' })
-        if (!error) saved++
-      } catch { /* skip */ }
+      if (await saveNewsItem({ ...article, source: '机器之心', category: 'AI算力', importance: 3 })) saved++
     }
 
     return { source: '机器之心', count: saved }
@@ -150,17 +156,7 @@ async function crawlQbitAI(): Promise<CrawlResult> {
 
     let saved = 0
     for (const article of articles) {
-      try {
-        const { error } = await supabaseAdmin.from('tai_news').upsert({
-          title: article.title,
-          url: article.url,
-          source: '量子位',
-          category: 'AI前沿',
-          importance: 3,
-          published_at: new Date().toISOString(),
-        }, { onConflict: 'url' })
-        if (!error) saved++
-      } catch { /* skip */ }
+      if (await saveNewsItem({ ...article, source: '量子位', category: 'AI前沿', importance: 3 })) saved++
     }
 
     return { source: '量子位', count: saved }
@@ -195,17 +191,7 @@ async function crawlCailian(): Promise<CrawlResult> {
 
     let saved = 0
     for (const item of items) {
-      try {
-        const { error } = await supabaseAdmin.from('tai_news').upsert({
-          title: item.title,
-          url: item.url,
-          source: '财联社',
-          category: '市场快讯',
-          importance: 4,
-          published_at: new Date().toISOString(),
-        }, { onConflict: 'url' })
-        if (!error) saved++
-      } catch { /* skip */ }
+      if (await saveNewsItem({ ...item, source: '财联社', category: '市场快讯', importance: 4 })) saved++
     }
 
     return { source: '财联社', count: saved }
