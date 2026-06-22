@@ -1,38 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 
-export async function GET() {
+// GET - List tags with optional stock count
+export async function GET(request: NextRequest) {
   try {
-    const { data: tags, error } = await supabaseAdmin
+    const searchParams = request.nextUrl.searchParams
+    const category = searchParams.get('category')
+
+    let query = supabaseAdmin
       .from('tai_tags')
-      .select('*, stocks:tai_stocks(*)')
+      .select('*')
       .order('created_at', { ascending: false })
 
-    if (error) throw error
-    return NextResponse.json({ tags: tags || [] })
-  } catch (e) {
-    return NextResponse.json({ error: 'Failed to fetch tags' }, { status: 500 })
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (category) {
+      query = query.eq('category', category)
     }
 
-    const { name, category, description } = await request.json()
-    
-    const { data, error } = await supabaseAdmin
-      .from('tai_tags')
-      .insert({ name, category, description })
-      .select()
-      .single()
+    const { data: tags, error } = await query
 
     if (error) throw error
-    return NextResponse.json({ tag: data })
+
+    // Get stock counts for each tag
+    const tagsWithStocks = await Promise.all(
+      (tags || []).map(async (tag) => {
+        const { data: stocks } = await supabaseAdmin
+          .from('tai_stocks')
+          .select('id')
+          .eq('tag_id', tag.id)
+        
+        return {
+          ...tag,
+          stocks: stocks || []
+        }
+      })
+    )
+
+    return NextResponse.json({ tags: tagsWithStocks })
   } catch (e) {
-    return NextResponse.json({ error: 'Failed to create tag' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to fetch tags' }, { status: 500 })
   }
 }
