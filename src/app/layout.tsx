@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Navbar from '@/components/Navbar'
 
 export const metadata: Metadata = {
   title: 'TechAI Hub - AI科技趋势与投资研究',
@@ -12,7 +13,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN">
-      <body className="font-sans antialiased">
+      <body className="font-sans antialiased bg-gray-50">
+        <Navbar />
         {children}
       </body>
     </html>
