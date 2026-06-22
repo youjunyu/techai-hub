@@ -5,7 +5,7 @@ import { generateNewsSummary } from '@/lib/ai-summary'
 // Helper to save a news item with AI summary
 async function saveNewsItem(item: { title: string; url: string; source: string; category: string; importance: number; summary?: string }) {
   const aiSummary = await generateNewsSummary(item.title, item.summary || '')
-  const { error } = await supabaseAdmin.from('tai_news').upsert({
+  const { error } = await supabaseAdmin().from('tai_news').upsert({
     title: item.title,
     url: item.url,
     source: item.source,
@@ -86,7 +86,7 @@ async function crawl36kr(): Promise<CrawlResult> {
     let saved = 0
     for (const article of articles) {
       try {
-        const { error } = await supabaseAdmin.from('tai_news').upsert({
+        const { error } = await supabaseAdmin().from('tai_news').upsert({
           title: article.title,
           url: article.url,
           source: '36氪',

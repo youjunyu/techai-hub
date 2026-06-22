@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user via Supabase Auth
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    const { data, error } = await supabaseAdmin().auth.admin.createUser({
       email,
       password,
       email_confirm: true,
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       // Rollback auth user
-      await supabaseAdmin.auth.admin.deleteUser(data.user.id)
+      await supabaseAdmin().auth.admin.deleteUser(data.user.id)
       return NextResponse.json({ error: profileError.message }, { status: 500 })
     }
 

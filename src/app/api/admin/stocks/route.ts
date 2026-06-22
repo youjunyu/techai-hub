@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
           tag_id: t.id,
           stock_id: stock.id,
         }))
-        await supabaseAdmin.from('tai_tag_stocks').insert(links)
+        await supabaseAdmin().from('tai_tag_stocks').insert(links)
       }
     }
 

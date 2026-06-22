@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = authHeader.split(' ')[1]
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+    const { data: { user }, error: authError } = await supabaseAdmin().auth.getUser(token)
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
         description: l.description || '',
         key_metrics: l.key_metrics || ''
       }))
-      await supabaseAdmin.from('tai_chain_layers').insert(layerRows)
+      await supabaseAdmin().from('tai_chain_layers').insert(layerRows)
     }
 
     return NextResponse.json({ chain })

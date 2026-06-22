@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     }
 
     const token = authHeader.split(' ')[1]
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
+    const { data: { user }, error } = await supabaseAdmin().auth.getUser(token)
 
     if (error || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

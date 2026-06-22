@@ -48,7 +48,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'id required' }, { status: 400 })
     }
 
-    const { error } = await supabaseAdmin.from('tai_tags').delete().eq('id', id)
+    const { error } = await supabaseAdmin().from('tai_tags').delete().eq('id', id)
     if (error) throw error
 
     return NextResponse.json({ success: true })
