@@ -4,205 +4,198 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabaseClient } from '@/lib/supabase'
 
+interface NewsItem {
+  id: string
+  title: string
+  source: string
+  category?: string
+  importance: number
+  published_at?: string
+  summary?: string
+}
+
+interface StatItem {
+  label: string
+  value: string
+  change?: string
+  trend?: 'up' | 'down' | 'neutral'
+}
+
 export default function HomePage() {
-  const [user, setUser] = useState<any>(null)
-  const [chains, setChains] = useState<any[]>([])
-  const [tags, setTags] = useState<any[]>([])
-  const [news, setNews] = useState<any[]>([])
+  const [news, setNews] = useState<NewsItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
-    supabaseClient.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null)
-    })
-
-    // Fetch data
-    Promise.all([
-      fetch('/api/chains').then(r => r.json()),
-      fetch('/api/tags').then(r => r.json()),
-      fetch('/api/news?limit=10').then(r => r.json()),
-    ]).then(([chainsData, tagsData, newsData]) => {
-      setChains(chainsData.chains || [])
-      setTags(tagsData.tags || [])
-      setNews(newsData.news || [])
-      setLoading(false)
-    })
+    loadData()
   }, [])
 
-  const handleLogout = async () => {
-    await supabaseClient.auth.signOut()
-    setUser(null)
+  const loadData = async () => {
+    // Load news
+    const res = await fetch('/api/news?limit=5')
+    const data = await res.json()
+    setNews(data.news || [])
+
+    // Check auth
+    const { data: { session } } = await supabaseClient.auth.getSession()
+    setUser(session?.user || null)
+
+    setLoading(false)
   }
+
+  const stats: StatItem[] = [
+    { label: '科技资讯', value: '实时追踪', change: 'AI/机器人/半导体', trend: 'up' },
+    { label: '产业链分析', value: '8+ 核心产业链', change: '覆盖AI全栈', trend: 'up' },
+    { label: '投资标签', value: '智能标签池', change: 'HBM/光模块/机器人', trend: 'neutral' },
+    { label: 'AI 日报', value: '每日自动生成', change: 'Kimi AI驱动', trend: 'up' },
+  ]
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Link href="/" className="text-xl font-bold text-blue-600">
-                TechAI Hub
-              </Link>
-              <span className="ml-2 text-sm text-gray-500">AI科技趋势与投资研究</span>
-            </div>
-            <nav className="flex items-center gap-6">
-              <Link href="/news" className="text-gray-600 hover:text-blue-600">资讯</Link>
-              <Link href="/chains" className="text-gray-600 hover:text-blue-600">产业链</Link>
-              <Link href="/tags" className="text-gray-600 hover:text-blue-600">标签</Link>
-              <Link href="/reports" className="text-gray-600 hover:text-blue-600">日报</Link>
+      {/* Hero Section */}
+      <section className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="text-center">
+            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+              AI 科技趋势与投资研究
+            </h1>
+            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+              实时追踪 AI 产业链动态，智能生成每日投资分析报告，
+              助您在科技浪潮中把握投资先机
+            </p>
+            <div className="flex flex-wrap justify-center gap-4">
               {user ? (
                 <>
-                  <Link href="/profile" className="text-gray-600 hover:text-blue-600">个人中心</Link>
-                  <button onClick={handleLogout} className="text-gray-600 hover:text-red-600">退出</button>
+                  <Link href="/chains" className="px-6 py-3 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition">
+                    探索产业链
+                  </Link>
+                  <Link href="/reports" className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-400 transition">
+                    查看日报
+                  </Link>
                 </>
               ) : (
                 <>
-                  <Link href="/login" className="text-gray-600 hover:text-blue-600">登录</Link>
-                  <Link href="/register" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                    注册
+                  <Link href="/register" className="px-6 py-3 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50 transition">
+                    免费注册
+                  </Link>
+                  <Link href="/login" className="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-400 transition">
+                    登录
                   </Link>
                 </>
               )}
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Hero Section */}
-        <section className="mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            AI科技趋势与投资研究平台
-          </h1>
-          <p className="text-xl text-gray-600 max-w-3xl">
-            聚合全球科技资讯，构建AI产业链知识库，生成个性化投资分析日报
-          </p>
-        </section>
-
-        {/* Stats */}
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="text-3xl font-bold text-blue-600">{chains.length}</div>
-            <div className="text-gray-600">产业链</div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="text-3xl font-bold text-green-600">{tags.length}</div>
-            <div className="text-gray-600">科技标签</div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="text-3xl font-bold text-purple-600">{news.length}</div>
-            <div className="text-gray-600">资讯文章</div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-            <div className="text-3xl font-bold text-orange-600">5</div>
-            <div className="text-gray-600">市场覆盖</div>
-          </div>
-        </section>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Latest News */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-xl font-bold mb-4">最新资讯</h2>
-              {loading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="animate-pulse">
-                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : news.length > 0 ? (
-                <div className="space-y-4">
-                  {news.slice(0, 5).map((item: any) => (
-                    <div key={item.id} className="border-b border-gray-100 pb-4 last:border-0">
-                      <a href={item.url} target="_blank" rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 font-medium">
-                        {item.title}
-                      </a>
-                      <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
-                        <span>{item.source}</span>
-                        {item.published_at && (
-                          <span>{new Date(item.published_at).toLocaleDateString()}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500">暂无资讯，等待爬虫抓取...</p>
-              )}
-              <Link href="/news" className="inline-block mt-4 text-blue-600 hover:text-blue-800">
-                查看全部 →
-              </Link>
-            </div>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Industry Chains */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-xl font-bold mb-4">热门产业链</h2>
-              {loading ? (
-                <div className="space-y-2">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="animate-pulse h-4 bg-gray-200 rounded"></div>
-                  ))}
-                </div>
-              ) : chains.length > 0 ? (
-                <div className="space-y-3">
-                  {chains.slice(0, 5).map((chain: any) => (
-                    <Link key={chain.id} href={`/chains/${chain.id}`}
-                      className="block p-3 rounded-lg bg-gray-50 hover:bg-blue-50 transition-colors">
-                      <div className="font-medium text-gray-900">{chain.name}</div>
-                      <div className="text-sm text-gray-500 truncate">{chain.description}</div>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500">暂无产业链</p>
-              )}
-              <Link href="/chains" className="inline-block mt-4 text-blue-600 hover:text-blue-800">
-                查看全部 →
-              </Link>
-            </div>
-
-            {/* Tags */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-xl font-bold mb-4">热门标签</h2>
-              {loading ? (
-                <div className="flex flex-wrap gap-2">
-                  {[1, 2, 3, 4, 5].map(i => (
-                    <div key={i} className="animate-pulse h-8 w-16 bg-gray-200 rounded-full"></div>
-                  ))}
-                </div>
-              ) : tags.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {tags.slice(0, 8).map((tag: any) => (
-                    <Link key={tag.id} href={`/tags/${tag.id}`}
-                      className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm hover:bg-blue-200">
-                      {tag.name}
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500">暂无标签</p>
-              )}
-              <Link href="/tags" className="inline-block mt-4 text-blue-600 hover:text-blue-800">
-                查看全部 →
-              </Link>
             </div>
           </div>
         </div>
-      </main>
+      </section>
+
+      {/* Stats Grid */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {stats.map((stat, i) => (
+            <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <div className="text-sm text-gray-500 mb-1">{stat.label}</div>
+              <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
+              <div className={`text-sm mt-1 flex items-center gap-1 ${
+                stat.trend === 'up' ? 'text-green-600' :
+                stat.trend === 'down' ? 'text-red-600' : 'text-gray-500'
+              }`}>
+                {stat.change}
+                {stat.trend === 'up' && <span>↑</span>}
+                {stat.trend === 'down' && <span>↓</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Latest News */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-2xl font-bold text-gray-900">最新资讯</h2>
+          <Link href="/news" className="text-blue-600 hover:text-blue-800 text-sm">
+            查看全部 →
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">加载中...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {news.slice(0, 6).map((item: NewsItem) => (
+              <Link key={item.id} href={`/news/${item.id}`} className="block">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow h-full">
+                  <div className="flex items-center gap-2 mb-3">
+                    {item.category && (
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">
+                        {item.category}
+                      </span>
+                    )}
+                    <span className="text-yellow-500 text-xs">
+                      {'★'.repeat(item.importance)}
+                    </span>
+                  </div>
+                  <h3 className="font-bold text-gray-900 mb-2 line-clamp-2">
+                    {item.title}
+                  </h3>
+                  {item.summary && (
+                    <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+                      {item.summary}
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span>{item.source}</span>
+                    {item.published_at && (
+                      <span>{new Date(item.published_at).toLocaleDateString('zh-CN')}</span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Quick Links */}
+      <section className="bg-white border-t border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">核心功能</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <Link href="/chains" className="group">
+              <div className="bg-gray-50 rounded-xl p-8 text-center hover:bg-blue-50 transition">
+                <div className="text-4xl mb-4">🔗</div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">产业链分析</h3>
+                <p className="text-gray-600 text-sm">
+                  AI全栈产业链图谱，从芯片到应用全覆盖
+                </p>
+              </div>
+            </Link>
+            <Link href="/tags" className="group">
+              <div className="bg-gray-50 rounded-xl p-8 text-center hover:bg-purple-50 transition">
+                <div className="text-4xl mb-4">🏷️</div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">智能标签池</h3>
+                <p className="text-gray-600 text-sm">
+                  HBM、光模块、机器人等核心赛道标签化管理
+                </p>
+              </div>
+            </Link>
+            <Link href="/reports" className="group">
+              <div className="bg-gray-50 rounded-xl p-8 text-center hover:bg-orange-50 transition">
+                <div className="text-4xl mb-4">📊</div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">AI 日报</h3>
+                <p className="text-gray-600 text-sm">
+                  每日自动生成投资分析报告，邮件推送
+                </p>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-12 py-8">
-        <div className="max-w-7xl mx-auto px-4 text-center text-gray-500">
-          <p>© 2026 TechAI Hub. All rights reserved.</p>
-          <p className="mt-2 text-sm">AI科技趋势与投资研究平台 | 每日投资分析日报</p>
+      <footer className="bg-gray-900 text-gray-400">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+          <p>© 2026 TechAI Hub | AI科技趋势与投资研究平台</p>
+          <p className="text-sm mt-2">本平台内容由 AI 辅助生成，仅供参考，不构成投资建议</p>
         </div>
       </footer>
     </div>
