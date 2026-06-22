@@ -1,0 +1,2 @@
+59e1043 feat: TechAI Hub MVP with auth, chains, tags, news, reports, crawler
+9bd32e0 feat: TechAI Hub MVP - 用户系统、产业链管理、资讯聚合、日报系统
