@@ -71,7 +71,7 @@ async function crawl36kr(): Promise<CrawlResult> {
 
     // Extract article titles and links
     const articles: { title: string; url: string; summary?: string }[] = []
-    const titleRegex = /<a[^>]+href="(/p/\d+)"[^>]*>([\s\S]*?)<\/a>/gi
+    const titleRegex = new RegExp("<a[^>]+href=\"(/p/\\d+)\"[^>]*>([\\s\\S]*?)<\/a>", "gi")
     let match
 
     while ((match = titleRegex.exec(html)) !== null && articles.length < 20) {
