@@ -3,13 +3,26 @@
  * Generates summaries for news articles using Kimi API
  */
 
+import { logCrawlerError } from './logger'
+
 const AI_BASE_URL = process.env.AI_BASE_URL || 'https://agent-gw.kimi.com/coding'
 const AI_API_KEY = process.env.AI_API_KEY
 const AI_MODEL = process.env.AI_MODEL || 'stepfun/step-3.7-flash'
 
+// Fix URL: if base URL already ends with /v1, don't append /v1 again
+function getChatUrl(): string {
+  if (AI_BASE_URL.endsWith('/v1')) {
+    return `${AI_BASE_URL}/chat/completions`
+  }
+  return `${AI_BASE_URL}/v1/chat/completions`
+}
+
 export async function generateNewsSummary(title: string, content: string): Promise<string> {
   try {
-    const response = await fetch(`${AI_BASE_URL}/v1/chat/completions`, {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10000) // 10s timeout
+
+    const response = await fetch(getChatUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -30,17 +43,32 @@ export async function generateNewsSummary(title: string, content: string): Promi
         temperature: 0.5,
         max_tokens: 200,
       }),
+      signal: controller.signal,
     })
 
+    clearTimeout(timeout)
+
     if (!response.ok) {
-      console.error('AI summary API error:', response.status)
-      return ''
+      const errorText = await response.text().catch(() => 'unknown')
+      console.error('AI summary API error:', response.status, errorText)
+      await logCrawlerError('ai-summary', new Error(`AI API ${response.status}: ${errorText}`), {
+        title,
+        url: getChatUrl(),
+        status: response.status,
+      })
+      return '' // fallback: return empty, crawler will use original content
     }
 
     const data = await response.json()
     return data.choices?.[0]?.message?.content?.trim() || ''
-  } catch (e) {
-    console.error('AI summary error:', e)
+  } catch (e: any) {
+    if (e.name === 'AbortError') {
+      console.error('AI summary timeout')
+      await logCrawlerError('ai-summary', new Error('AI summary timeout'), { title })
+    } else {
+      console.error('AI summary error:', e)
+      await logCrawlerError('ai-summary', e, { title, url: getChatUrl() })
+    }
     return ''
   }
 }

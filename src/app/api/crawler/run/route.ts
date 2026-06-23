@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { generateNewsSummary } from '@/lib/ai-summary'
+import { logCrawlerError } from '@/lib/logger'
 
 // Helper to save a news item with AI summary
 async function saveNewsItem(item: { title: string; url: string; source: string; category: string; importance: number; summary?: string; published_at?: string }) {
   try {
+    // AI summary with timeout fallback
     const aiSummary = await generateNewsSummary(item.title, item.summary || '')
     const { error } = await supabaseAdmin()
       .from('tai_news')
@@ -14,12 +16,29 @@ async function saveNewsItem(item: { title: string; url: string; source: string; 
         source: item.source,
         category: item.category,
         importance: item.importance,
-        summary: aiSummary || item.summary,
+        summary: aiSummary || item.summary || item.title, // fallback to title if both empty
         published_at: item.published_at || new Date().toISOString(),
       }, { onConflict: 'url' })
     return !error
-  } catch {
-    return false
+  } catch (e: any) {
+    // Even if AI fails, try to save the raw article
+    try {
+      await supabaseAdmin()
+        .from('tai_news')
+        .upsert({
+          title: item.title,
+          url: item.url,
+          source: item.source,
+          category: item.category,
+          importance: item.importance,
+          summary: item.summary || item.title,
+          published_at: item.published_at || new Date().toISOString(),
+        }, { onConflict: 'url' })
+      return true
+    } catch (saveError: any) {
+      await logCrawlerError(item.source, saveError, { title: item.title, url: item.url })
+      return false
+    }
   }
 }
 
@@ -84,6 +103,7 @@ async function crawl36kr(): Promise<CrawlResult> {
 
     return { source: '36氪', count: saved }
   } catch (e: any) {
+    await logCrawlerError('36kr', e)
     return { source: '36氪', count: 0, error: e.message }
   }
 }
@@ -114,6 +134,7 @@ async function crawlJiQizhixin(): Promise<CrawlResult> {
 
     return { source: '机器之心', count: saved }
   } catch (e: any) {
+    await logCrawlerError('jiqizhixin', e)
     return { source: '机器之心', count: 0, error: e.message }
   }
 }
@@ -144,6 +165,7 @@ async function crawlQbitAI(): Promise<CrawlResult> {
 
     return { source: '量子位', count: saved }
   } catch (e: any) {
+    await logCrawlerError('qbitai', e)
     return { source: '量子位', count: 0, error: e.message }
   }
 }
@@ -177,6 +199,7 @@ async function crawlCailian(): Promise<CrawlResult> {
 
     return { source: '财联社', count: saved }
   } catch (e: any) {
+    await logCrawlerError('cailian', e)
     return { source: '财联社', count: 0, error: e.message }
   }
 }
@@ -208,6 +231,7 @@ async function crawlITHome(): Promise<CrawlResult> {
 
     return { source: 'IT之家', count: saved }
   } catch (e: any) {
+    await logCrawlerError('ithome', e)
     return { source: 'IT之家', count: 0, error: e.message }
   }
 }
@@ -238,6 +262,7 @@ async function crawlLeifeng(): Promise<CrawlResult> {
 
     return { source: '雷锋网', count: saved }
   } catch (e: any) {
+    await logCrawlerError('leifeng', e)
     return { source: '雷锋网', count: 0, error: e.message }
   }
 }
@@ -268,6 +293,7 @@ async function crawlICViews(): Promise<CrawlResult> {
 
     return { source: '半导体行业观察', count: saved }
   } catch (e: any) {
+    await logCrawlerError('icviews', e)
     return { source: '半导体行业观察', count: 0, error: e.message }
   }
 }
@@ -298,6 +324,7 @@ async function crawlMyDrivers(): Promise<CrawlResult> {
 
     return { source: '快科技', count: saved }
   } catch (e: any) {
+    await logCrawlerError('mydrivers', e)
     return { source: '快科技', count: 0, error: e.message }
   }
 }
@@ -328,6 +355,7 @@ async function crawlEastmoney(): Promise<CrawlResult> {
 
     return { source: '东方财富', count: saved }
   } catch (e: any) {
+    await logCrawlerError('eastmoney', e)
     return { source: '东方财富', count: 0, error: e.message }
   }
 }
@@ -358,6 +386,7 @@ async function crawlNeteaseTech(): Promise<CrawlResult> {
 
     return { source: '网易科技', count: saved }
   } catch (e: any) {
+    await logCrawlerError('netease', e)
     return { source: '网易科技', count: 0, error: e.message }
   }
 }
@@ -415,6 +444,7 @@ export async function POST(request: NextRequest) {
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (e: any) {
+    await logCrawlerError('crawler-main', e)
     return NextResponse.json({ error: e.message || 'Crawl failed' }, { status: 500 })
   }
 }

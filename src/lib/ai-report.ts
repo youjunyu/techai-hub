@@ -4,10 +4,19 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase'
+import { logApiError } from '@/lib/logger'
 
 const AI_BASE_URL = process.env.AI_BASE_URL || 'https://agent-gw.kimi.com/coding'
 const AI_API_KEY = process.env.AI_API_KEY
 const AI_MODEL = process.env.AI_MODEL || 'stepfun/step-3.7-flash'
+
+// Fix URL: if base URL already ends with /v1, don't append /v1 again
+function getChatUrl(): string {
+  if (AI_BASE_URL.endsWith('/v1')) {
+    return `${AI_BASE_URL}/chat/completions`
+  }
+  return `${AI_BASE_URL}/v1/chat/completions`
+}
 
 export interface NewsItem {
   id: string
@@ -66,7 +75,7 @@ export interface ReportContent {
 }
 
 async function callAI(prompt: string): Promise<string> {
-  const response = await fetch(`${AI_BASE_URL}/v1/chat/completions`, {
+  const response = await fetch(getChatUrl(), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -97,8 +106,12 @@ async function callAI(prompt: string): Promise<string> {
   })
 
   if (!response.ok) {
-    const error = await response.text()
-    console.error('AI API error:', error)
+    const errorText = await response.text().catch(() => 'unknown')
+    console.error('AI API error:', errorText)
+    await logApiError('/api/reports/generate', new Error(`AI API ${response.status}: ${errorText}`), {
+      url: getChatUrl(),
+      status: response.status,
+    })
     throw new Error(`AI API failed: ${response.status}`)
   }
 
