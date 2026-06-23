@@ -84,6 +84,8 @@ async function callAI(prompt: string): Promise<string> {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${AI_API_KEY}`,
+      'User-Agent': 'Kimi Claw Plugin',
+      'X-Kimi-Claw-ID': '19cdc7d5-20b2-8533-8000-00002b74f06c',
     },
     body: JSON.stringify({
       model: AI_MODEL,

@@ -24,13 +24,15 @@ function getChatUrl(): string {
 export async function generateNewsSummary(title: string, content: string): Promise<string> {
   try {
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 10000) // 10s timeout
+    const timeout = setTimeout(() => controller.abort(), 10000)
 
     const response = await fetch(getChatUrl(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${AI_API_KEY}`,
+        'User-Agent': 'Kimi Claw Plugin',
+        'X-Kimi-Claw-ID': '19cdc7d5-20b2-8533-8000-00002b74f06c',
       },
       body: JSON.stringify({
         model: AI_MODEL,
