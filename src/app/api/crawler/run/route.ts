@@ -3,11 +3,9 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { generateNewsSummary } from '@/lib/ai-summary'
 import { logCrawlerError } from '@/lib/logger'
 
-// Helper to save a news item with AI summary
+// Helper to save a news item (NO AI summary during crawl - just store raw data)
 async function saveNewsItem(item: { title: string; url: string; source: string; category: string; importance: number; summary?: string; published_at?: string }) {
   try {
-    // AI summary with timeout fallback
-    const aiSummary = await generateNewsSummary(item.title, item.summary || '')
     const { error } = await supabaseAdmin()
       .from('tai_news')
       .upsert({
@@ -16,29 +14,14 @@ async function saveNewsItem(item: { title: string; url: string; source: string; 
         source: item.source,
         category: item.category,
         importance: item.importance,
-        summary: aiSummary || item.summary || item.title, // fallback to title if both empty
+        summary: item.summary || item.title, // Use provided summary or title; AI will process later
         published_at: item.published_at || new Date().toISOString(),
+        is_processed: false, // Mark as not yet AI-processed
       }, { onConflict: 'url' })
     return !error
   } catch (e: any) {
-    // Even if AI fails, try to save the raw article
-    try {
-      await supabaseAdmin()
-        .from('tai_news')
-        .upsert({
-          title: item.title,
-          url: item.url,
-          source: item.source,
-          category: item.category,
-          importance: item.importance,
-          summary: item.summary || item.title,
-          published_at: item.published_at || new Date().toISOString(),
-        }, { onConflict: 'url' })
-      return true
-    } catch (saveError: any) {
-      await logCrawlerError(item.source, saveError, { title: item.title, url: item.url })
-      return false
-    }
+    await logCrawlerError(item.source, e, { title: item.title, url: item.url })
+    return false
   }
 }
 

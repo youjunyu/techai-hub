@@ -254,6 +254,25 @@ function NewsManager() {
     }
   }
 
+  const runAIProcess = async () => {
+    setLoading(true)
+    setMessage('')
+    try {
+      const res = await fetch('/api/crawler/ai-process?batch=20', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        setMessage(`AI 摘要完成：处理 ${data.processed || 0}/${data.total || 0} 条 ✓`)
+      } else {
+        setMessage(`AI 摘要失败: ${data.error || '未知错误'}`)
+      }
+    } catch (e: any) {
+      setMessage(`AI 摘要失败: ${e.message}`)
+    } finally {
+      setLoading(false)
+      setTimeout(() => setMessage(''), 5000)
+    }
+  }
+
   return (
     <div className="bg-white rounded-xl p-6">
       <h3 className="text-lg font-bold mb-4">资讯管理</h3>
@@ -265,13 +284,20 @@ function NewsManager() {
         </div>
       )}
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-wrap">
         <button
           onClick={runCrawler}
           disabled={loading}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
           {loading ? '运行中...' : '运行爬虫'}
+        </button>
+        <button
+          onClick={runAIProcess}
+          disabled={loading}
+          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+        >
+          {loading ? '运行中...' : '运行 AI 摘要'}
         </button>
         <button
           onClick={seedData}
@@ -396,31 +422,44 @@ function CronManager() {
     setMessage('')
     try {
       const token = (await supabaseClient.auth.getSession()).data.session?.access_token
-      const res = await fetch('/api/cron/execute', {
+
+      // Step 1: Run crawler
+      setMessage('正在爬取资讯...')
+      const crawlerRes = await fetch('/api/crawler/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ sources: 'all' }),
+      })
+      const crawlerData = await crawlerRes.json()
+      const crawlerCount = crawlerData.results?.reduce((s: number, r: any) => s + r.count, 0) || 0
+
+      // Step 2: Run AI summary (process unprocessed news)
+      setMessage(`爬取完成: ${crawlerCount} 条，正在 AI 摘要...`)
+      const aiRes = await fetch('/api/crawler/ai-process?batch=20', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      })
+      const aiData = await aiRes.json()
+      const aiCount = aiData.processed || 0
+
+      // Step 3: Generate report
+      setMessage(`AI 摘要完成: ${aiCount} 条，正在生成日报...`)
+      const reportRes = await fetch('/api/cron/execute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          runCrawler: true,
-          runReport: true,
-          sources: 'all',
-        }),
+        body: JSON.stringify({ runCrawler: false, runReport: true }),
       })
-      const data = await res.json()
-      if (res.ok) {
-        const crawlerCount = data.results?.crawler?.results?.reduce((s: number, r: any) => s + r.count, 0) || 0
-        const reportCount = data.results?.report?.results?.length || 0
-        setMessage(`执行完成：爬取 ${crawlerCount} 条资讯，生成 ${reportCount} 份报告 ✓`)
-      } else {
-        setMessage(`执行失败: ${data.error || '未知错误'}`)
-      }
+      const reportData = await reportRes.json()
+
+      setMessage(`全部完成：爬取 ${crawlerCount} 条，AI 处理 ${aiCount} 条，生成日报 ✓`)
     } catch (e: any) {
       setMessage(`执行失败: ${e.message}`)
     } finally {
       setRunning(false)
-      setTimeout(() => setMessage(''), 5000)
+      setTimeout(() => setMessage(''), 8000)
     }
   }
 

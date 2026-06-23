@@ -46,7 +46,7 @@ export async function generateNewsSummary(title: string, content: string): Promi
             content: `标题：${title}\n\n正文：${content || title}`,
           },
         ],
-        temperature: 0.5,
+        temperature: 1, // kimi-coding/k2p6 requires temperature=1
         max_tokens: 200,
       }),
       signal: controller.signal,

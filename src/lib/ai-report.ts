@@ -106,7 +106,7 @@ async function callAI(prompt: string): Promise<string> {
           content: prompt,
         },
       ],
-      temperature: 0.7,
+      temperature: 1, // kimi-coding/k2p6 requires temperature=1
       max_tokens: 4000,
     }),
   })
