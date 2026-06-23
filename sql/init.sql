@@ -134,6 +134,18 @@ CREATE TABLE IF NOT EXISTS tai_cron_logs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Error logs table (for runtime monitoring)
+CREATE TABLE IF NOT EXISTS tai_error_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  source TEXT NOT NULL, -- 'api', 'client', 'crawler', 'report', 'system'
+  endpoint TEXT, -- API route or page path
+  error_message TEXT NOT NULL,
+  error_stack TEXT,
+  details JSONB DEFAULT '{}',
+  user_id UUID REFERENCES tai_users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_news_category ON tai_news(category);
 CREATE INDEX IF NOT EXISTS idx_news_published_at ON tai_news(published_at);

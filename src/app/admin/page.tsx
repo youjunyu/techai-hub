@@ -23,7 +23,7 @@ export default function AdminPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tabs */}
         <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-8">
-          {['overview', 'tags', 'stocks', 'news', 'chains', 'cron'].map((tab) => (
+          {['overview', 'tags', 'stocks', 'news', 'chains', 'cron', 'errors'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -37,7 +37,7 @@ export default function AdminPage() {
                tab === 'tags' ? '标签管理' :
                tab === 'stocks' ? '股票池' :
                tab === 'news' ? '资讯管理' :
-               tab === 'cron' ? '定时任务' : '产业链管理'}
+               tab === 'cron' ? '定时任务' : tab === 'errors' ? '异常日志' : '产业链管理'}
             </button>
           ))}
         </div>
@@ -105,6 +105,9 @@ export default function AdminPage() {
 
         {/* Cron */}
         {activeTab === 'cron' && <CronManager />}
+
+        {/* Errors */}
+        {activeTab === 'errors' && <ErrorLogManager />}
       </main>
     </div>
   )
@@ -497,6 +500,150 @@ function CronManager() {
           <p>• 环境变量 CRON_SECRET 用于验证请求来源</p>
         </div>
       </div>
+    </div>
+  )
+}
+
+function ErrorLogManager() {
+  const [logs, setLogs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState('all')
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    loadLogs()
+  }, [filter])
+
+  const loadLogs = async () => {
+    setLoading(true)
+    try {
+      const token = (await supabaseClient.auth.getSession()).data.session?.access_token
+      const url = filter !== 'all' ? `/api/log/list?source=${filter}` : '/api/log/list'
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setLogs(data.logs || [])
+      } else {
+        setMessage(`加载失败: ${data.error || '未知错误'}`)
+      }
+    } catch (e: any) {
+      setMessage(`加载失败: ${e.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const clearLogs = async () => {
+    if (!confirm('确定清空所有异常日志？')) return
+    try {
+      const token = (await supabaseClient.auth.getSession()).data.session?.access_token
+      const res = await fetch('/api/log/clear', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (res.ok) {
+        setLogs([])
+        setMessage('日志已清空 ✓')
+        setTimeout(() => setMessage(''), 3000)
+      } else {
+        setMessage('清空失败')
+      }
+    } catch {
+      setMessage('清空失败')
+    }
+  }
+
+  const formatTime = (ts: string) => {
+    return new Date(ts).toLocaleString('zh-CN')
+  }
+
+  const truncate = (str: string, len: number) => {
+    if (!str) return '-'
+    return str.length > len ? str.slice(0, len) + '...' : str
+  }
+
+  return (
+    <div className="bg-white rounded-xl p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-lg font-bold">异常日志</h3>
+        <div className="flex gap-3">
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+          >
+            <option value="all">全部来源</option>
+            <option value="api">API</option>
+            <option value="client">客户端</option>
+            <option value="crawler">爬虫</option>
+            <option value="report">日报</option>
+            <option value="system">系统</option>
+          </select>
+          <button
+            onClick={loadLogs}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+          >
+            刷新
+          </button>
+          <button
+            onClick={clearLogs}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+          >
+            清空
+          </button>
+        </div>
+      </div>
+
+      {message && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${message.includes('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          {message}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-center py-8 text-gray-500">加载中...</div>
+      ) : logs.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">暂无异常日志</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-left py-2 w-32">时间</th>
+                <th className="text-left py-2 w-20">来源</th>
+                <th className="text-left py-2 w-40">位置</th>
+                <th className="text-left py-2">错误信息</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((log: any) => (
+                <tr key={log.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-2 text-xs text-gray-500">{formatTime(log.created_at)}</td>
+                  <td className="py-2">
+                    <span className={`inline-block px-2 py-0.5 rounded text-xs ${
+                      log.source === 'api' ? 'bg-blue-100 text-blue-700' :
+                      log.source === 'client' ? 'bg-purple-100 text-purple-700' :
+                      log.source === 'crawler' ? 'bg-orange-100 text-orange-700' :
+                      log.source === 'report' ? 'bg-green-100 text-green-700' :
+                      'bg-gray-100 text-gray-700'
+                    }`}>
+                      {log.source}
+                    </span>
+                  </td>
+                  <td className="py-2 text-xs text-gray-600" title={log.endpoint}>
+                    {truncate(log.endpoint, 30)}
+                  </td>
+                  <td className="py-2 text-xs text-red-600" title={log.error_message}>
+                    {truncate(log.error_message, 80)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
