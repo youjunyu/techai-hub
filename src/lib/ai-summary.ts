@@ -5,16 +5,20 @@
 
 import { logCrawlerError } from './logger'
 
-const AI_BASE_URL = process.env.AI_BASE_URL || 'https://agent-gw.kimi.com/coding'
+const AI_BASE_URL = process.env.AI_BASE_URL || 'https://api.stepfun.com/v1'
 const AI_API_KEY = process.env.AI_API_KEY
 const AI_MODEL = process.env.AI_MODEL || 'stepfun/step-3.7-flash'
 
-// Fix URL: if base URL already ends with /v1, don't append /v1 again
+// Smart URL builder: handles various base URL formats
 function getChatUrl(): string {
-  if (AI_BASE_URL.endsWith('/v1')) {
-    return `${AI_BASE_URL}/chat/completions`
+  const base = AI_BASE_URL.trim().replace(/\/$/, '')
+  if (base.endsWith('/v1')) {
+    return `${base}/chat/completions`
   }
-  return `${AI_BASE_URL}/v1/chat/completions`
+  if (base.includes('/v1/')) {
+    return `${base}/chat/completions`
+  }
+  return `${base}/v1/chat/completions`
 }
 
 export async function generateNewsSummary(title: string, content: string): Promise<string> {

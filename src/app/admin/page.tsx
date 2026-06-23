@@ -64,32 +64,7 @@ export default function AdminPage() {
 
         {/* News */}
         {activeTab === 'news' && (
-          <div className="bg-white rounded-xl p-6">
-            <h3 className="text-lg font-bold mb-4">资讯管理</h3>
-            <p className="text-gray-500 mb-4">资讯通过爬虫自动抓取，或手动添加</p>
-            <div className="flex gap-4">
-              <button
-                onClick={async () => {
-                  const res = await fetch('/api/crawler/run', { method: 'POST' })
-                  const data = await res.json()
-                  alert(data.message || JSON.stringify(data))
-                }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                运行爬虫
-              </button>
-              <button
-                onClick={async () => {
-                  const res = await fetch('/api/admin/seed', { method: 'POST' })
-                  const data = await res.json()
-                  alert(data.message || JSON.stringify(data))
-                }}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                填充示例数据
-              </button>
-            </div>
-          </div>
+          <NewsManager />
         )}
 
         {/* Chains */}
@@ -231,6 +206,80 @@ function TagManager() {
             )}
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+function NewsManager() {
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+
+  const runCrawler = async () => {
+    setLoading(true)
+    setMessage('')
+    try {
+      const res = await fetch('/api/crawler/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sources: 'all' }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        const total = data.results?.reduce((s: number, r: any) => s + r.count, 0) || 0
+        setMessage(`爬虫完成：共爬取 ${total} 条资讯 ✓`)
+      } else {
+        setMessage(`爬虫失败: ${data.error || '未知错误'}`)
+      }
+    } catch (e: any) {
+      setMessage(`爬虫失败: ${e.message}`)
+    } finally {
+      setLoading(false)
+      setTimeout(() => setMessage(''), 5000)
+    }
+  }
+
+  const seedData = async () => {
+    setLoading(true)
+    setMessage('')
+    try {
+      const res = await fetch('/api/admin/seed', { method: 'POST' })
+      const data = await res.json()
+      setMessage(data.message || '数据填充完成 ✓')
+    } catch (e: any) {
+      setMessage(`填充失败: ${e.message}`)
+    } finally {
+      setLoading(false)
+      setTimeout(() => setMessage(''), 3000)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl p-6">
+      <h3 className="text-lg font-bold mb-4">资讯管理</h3>
+      <p className="text-gray-500 mb-4">资讯通过爬虫自动抓取，或手动添加</p>
+
+      {message && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${message.includes('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          {message}
+        </div>
+      )}
+
+      <div className="flex gap-4">
+        <button
+          onClick={runCrawler}
+          disabled={loading}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? '运行中...' : '运行爬虫'}
+        </button>
+        <button
+          onClick={seedData}
+          disabled={loading}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+        >
+          填充示例数据
+        </button>
       </div>
     </div>
   )
