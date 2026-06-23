@@ -28,6 +28,10 @@ export default function LoginPage() {
         setError(data.error || '登录失败')
         return
       }
+      // 保存 session 到 supabase client，确保页面刷新后仍保持登录
+      if (data.session) {
+        await supabaseClient.auth.setSession(data.session)
+      }
       router.push('/')
       router.refresh()
     } catch (e) {

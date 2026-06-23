@@ -9,9 +9,19 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
+    // 初始获取 session
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null)
     })
+
+    // 监听 auth 状态变化（登录/登出/刷新）
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null)
+      }
+    )
+
+    return () => subscription.unsubscribe()
   }, [])
 
   const handleLogout = async () => {

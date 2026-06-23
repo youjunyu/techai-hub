@@ -113,6 +113,27 @@ CREATE TABLE IF NOT EXISTS tai_user_follows (
   UNIQUE(user_id, tag_id, chain_id)
 );
 
+-- Cron config table
+CREATE TABLE IF NOT EXISTS tai_cron_config (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  enabled BOOLEAN DEFAULT TRUE,
+  morning_time TEXT DEFAULT '08:00',
+  evening_time TEXT DEFAULT '20:00',
+  sources TEXT[] DEFAULT ARRAY['36kr','jiqizhixin','qbitai','cailian','ithome','leifeng','icviews','mydrivers','eastmoney','netease'],
+  generate_report BOOLEAN DEFAULT TRUE,
+  send_email BOOLEAN DEFAULT FALSE,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Cron execution logs
+CREATE TABLE IF NOT EXISTS tai_cron_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  task_type TEXT NOT NULL, -- 'crawler', 'report'
+  status TEXT NOT NULL, -- 'success', 'failed', 'partial'
+  details JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_news_category ON tai_news(category);
 CREATE INDEX IF NOT EXISTS idx_news_published_at ON tai_news(published_at);
@@ -130,6 +151,11 @@ ALTER TABLE tai_tags ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tai_stocks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tai_daily_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tai_user_follows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tai_cron_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tai_cron_logs ENABLE ROW LEVEL SECURITY;
+
+-- Cron config: public readable (admins will use service role to write)
+CREATE POLICY "Cron config readable by all" ON tai_cron_config FOR SELECT USING (true);
 
 -- Users: users can read/write their own
 CREATE POLICY "Users can read own" ON tai_users FOR SELECT USING (auth.uid() = id);

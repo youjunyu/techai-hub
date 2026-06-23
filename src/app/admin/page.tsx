@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { supabaseClient } from '@/lib/supabase'
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState('overview')
@@ -22,7 +23,7 @@ export default function AdminPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tabs */}
         <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-8">
-          {['overview', 'tags', 'stocks', 'news', 'chains'].map((tab) => (
+          {['overview', 'tags', 'stocks', 'news', 'chains', 'cron'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -35,7 +36,8 @@ export default function AdminPage() {
               {tab === 'overview' ? '概览' :
                tab === 'tags' ? '标签管理' :
                tab === 'stocks' ? '股票池' :
-               tab === 'news' ? '资讯管理' : '产业链管理'}
+               tab === 'news' ? '资讯管理' :
+               tab === 'cron' ? '定时任务' : '产业链管理'}
             </button>
           ))}
         </div>
@@ -100,6 +102,9 @@ export default function AdminPage() {
             </Link>
           </div>
         )}
+
+        {/* Cron */}
+        {activeTab === 'cron' && <CronManager />}
       </main>
     </div>
   )
@@ -267,6 +272,230 @@ function StockManager() {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+function CronManager() {
+  const [config, setConfig] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [running, setRunning] = useState(false)
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    loadConfig()
+  }, [])
+
+  const loadConfig = async () => {
+    try {
+      const res = await fetch('/api/cron/config')
+      const data = await res.json()
+      setConfig(data.config || {
+        enabled: true,
+        morning_time: '08:00',
+        evening_time: '20:00',
+        sources: ['36kr','jiqizhixin','qbitai','cailian','ithome','leifeng','icviews','mydrivers','eastmoney','netease'],
+        generate_report: true,
+        send_email: false,
+      })
+    } catch {
+      setConfig({
+        enabled: true,
+        morning_time: '08:00',
+        evening_time: '20:00',
+        sources: ['36kr','jiqizhixin','qbitai','cailian','ithome','leifeng','icviews','mydrivers','eastmoney','netease'],
+        generate_report: true,
+        send_email: false,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const saveConfig = async () => {
+    setSaving(true)
+    try {
+      const token = (await supabaseClient.auth.getSession()).data.session?.access_token
+      const res = await fetch('/api/cron/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(config),
+      })
+      if (res.ok) {
+        setMessage('配置已保存 ✓')
+      } else {
+        setMessage('保存失败')
+      }
+    } catch {
+      setMessage('保存失败')
+    } finally {
+      setSaving(false)
+      setTimeout(() => setMessage(''), 3000)
+    }
+  }
+
+  const runNow = async () => {
+    setRunning(true)
+    setMessage('')
+    try {
+      const token = (await supabaseClient.auth.getSession()).data.session?.access_token
+      const res = await fetch('/api/cron/execute', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          runCrawler: true,
+          runReport: true,
+          sources: 'all',
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        const crawlerCount = data.results?.crawler?.results?.reduce((s: number, r: any) => s + r.count, 0) || 0
+        const reportCount = data.results?.report?.results?.length || 0
+        setMessage(`执行完成：爬取 ${crawlerCount} 条资讯，生成 ${reportCount} 份报告 ✓`)
+      } else {
+        setMessage(`执行失败: ${data.error || '未知错误'}`)
+      }
+    } catch (e: any) {
+      setMessage(`执行失败: ${e.message}`)
+    } finally {
+      setRunning(false)
+      setTimeout(() => setMessage(''), 5000)
+    }
+  }
+
+  const allSources = [
+    { key: '36kr', label: '36氪' },
+    { key: 'jiqizhixin', label: '机器之心' },
+    { key: 'qbitai', label: '量子位' },
+    { key: 'cailian', label: '财联社' },
+    { key: 'ithome', label: 'IT之家' },
+    { key: 'leifeng', label: '雷锋网' },
+    { key: 'icviews', label: '半导体行业观察' },
+    { key: 'mydrivers', label: '快科技' },
+    { key: 'eastmoney', label: '东方财富' },
+    { key: 'netease', label: '网易科技' },
+  ]
+
+  if (loading) return <div className="bg-white rounded-xl p-6">加载中...</div>
+
+  return (
+    <div className="bg-white rounded-xl p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="text-lg font-bold">定时任务配置</h3>
+        <div className="flex gap-3">
+          <button
+            onClick={runNow}
+            disabled={running}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm"
+          >
+            {running ? '执行中...' : '立即执行爬虫+日报'}
+          </button>
+          <button
+            onClick={saveConfig}
+            disabled={saving}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
+          >
+            {saving ? '保存中...' : '保存配置'}
+          </button>
+        </div>
+      </div>
+
+      {message && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${message.includes('✓') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+          {message}
+        </div>
+      )}
+
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium text-gray-700">启用定时任务</label>
+          <input
+            type="checkbox"
+            checked={config.enabled}
+            onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
+            className="w-4 h-4"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">早间执行时间</label>
+            <input
+              type="time"
+              value={config.morning_time || '08:00'}
+              onChange={(e) => setConfig({ ...config, morning_time: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">晚间执行时间</label>
+            <input
+              type="time"
+              value={config.evening_time || '20:00'}
+              onChange={(e) => setConfig({ ...config, evening_time: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">资讯源（勾选启用）</label>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {allSources.map((s) => (
+              <label key={s.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={(config.sources || []).includes(s.key)}
+                  onChange={(e) => {
+                    const sources = e.target.checked
+                      ? [...(config.sources || []), s.key]
+                      : (config.sources || []).filter((k: string) => k !== s.key)
+                    setConfig({ ...config, sources })
+                  }}
+                  className="w-4 h-4"
+                />
+                {s.label}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-6">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.generate_report}
+              onChange={(e) => setConfig({ ...config, generate_report: e.target.checked })}
+              className="w-4 h-4"
+            />
+            执行后生成日报
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.send_email}
+              onChange={(e) => setConfig({ ...config, send_email: e.target.checked })}
+              className="w-4 h-4"
+            />
+            发送邮件通知
+          </label>
+        </div>
+
+        <div className="p-4 bg-blue-50 rounded-lg text-sm text-blue-700">
+          <p className="font-medium mb-1">定时任务说明</p>
+          <p>• 爬虫和日报生成由外部 Cron 服务触发，调用 API: <code>/api/cron/execute?secret=CRON_SECRET</code></p>
+          <p>• 可配置 Vercel Cron Jobs 或自建 cron 服务，每天早上 {config.morning_time || '08:00'} 和晚上 {config.evening_time || '20:00'} 执行</p>
+          <p>• 环境变量 CRON_SECRET 用于验证请求来源</p>
+        </div>
       </div>
     </div>
   )

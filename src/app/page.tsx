@@ -28,6 +28,14 @@ export default function HomePage() {
 
   useEffect(() => {
     loadData()
+
+    // 监听 auth 状态变化
+    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user || null)
+      }
+    )
+    return () => subscription.unsubscribe()
   }, [])
 
   const loadData = async () => {
@@ -47,7 +55,7 @@ export default function HomePage() {
     { label: '科技资讯', value: '实时追踪', change: 'AI/机器人/半导体', trend: 'up' },
     { label: '产业链分析', value: '8+ 核心产业链', change: '覆盖AI全栈', trend: 'up' },
     { label: '投资标签', value: '智能标签池', change: 'HBM/光模块/机器人', trend: 'neutral' },
-    { label: 'AI 日报', value: '每日自动生成', change: 'Kimi AI驱动', trend: 'up' },
+    { label: 'AI 日报', value: '每日自动生成', change: 'AI驱动', trend: 'up' },
   ]
 
   return (

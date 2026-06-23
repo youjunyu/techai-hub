@@ -3,18 +3,24 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { generateNewsSummary } from '@/lib/ai-summary'
 
 // Helper to save a news item with AI summary
-async function saveNewsItem(item: { title: string; url: string; source: string; category: string; importance: number; summary?: string }) {
-  const aiSummary = await generateNewsSummary(item.title, item.summary || '')
-  const { error } = await supabaseAdmin().from('tai_news').upsert({
-    title: item.title,
-    url: item.url,
-    source: item.source,
-    category: item.category,
-    importance: item.importance,
-    summary: aiSummary || item.summary,
-    published_at: new Date().toISOString(),
-  }, { onConflict: 'url' })
-  return !error
+async function saveNewsItem(item: { title: string; url: string; source: string; category: string; importance: number; summary?: string; published_at?: string }) {
+  try {
+    const aiSummary = await generateNewsSummary(item.title, item.summary || '')
+    const { error } = await supabaseAdmin()
+      .from('tai_news')
+      .upsert({
+        title: item.title,
+        url: item.url,
+        source: item.source,
+        category: item.category,
+        importance: item.importance,
+        summary: aiSummary || item.summary,
+        published_at: item.published_at || new Date().toISOString(),
+      }, { onConflict: 'url' })
+    return !error
+  } catch {
+    return false
+  }
 }
 
 interface CrawlResult {
@@ -50,27 +56,16 @@ async function fetchWithTimeout(url: string, timeout = 10000): Promise<Response>
   }
 }
 
-function extractText(html: string, selector: string): string {
-  // Simple regex-based extraction (fallback when no DOM parser)
-  const regex = new RegExp(`<${selector}[^>]*>(.*?)</${selector}>`, 'gis')
-  const matches = html.match(regex)
-  if (!matches) return ''
-  return matches
-    .map(m => m.replace(/<[^>]*>/g, '').trim())
-    .filter(t => t.length > 10)
-    .join('\n')
-    .slice(0, 5000)
-}
+// ======== Crawl Sources ========
 
-// Crawl 36氪 AI section
+// 1. 36氪 AI section
 async function crawl36kr(): Promise<CrawlResult> {
   try {
     const res = await fetchWithTimeout('https://36kr.com/information/AI/', 15000)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const html = await res.text()
 
-    // Extract article titles and links
-    const articles: { title: string; url: string; summary?: string }[] = []
+    const articles: { title: string; url: string; summary?: string; published_at?: string }[] = []
     const titleRegex = new RegExp("<a[^>]+href=\"(/p/\\d+)\"[^>]*>([\\s\\S]*?)<\/a>", "gi")
     let match
 
@@ -82,20 +77,9 @@ async function crawl36kr(): Promise<CrawlResult> {
       }
     }
 
-    // Save to database
     let saved = 0
     for (const article of articles) {
-      try {
-        const { error } = await supabaseAdmin().from('tai_news').upsert({
-          title: article.title,
-          url: article.url,
-          source: '36氪',
-          category: 'AI算力',
-          importance: 3,
-          published_at: new Date().toISOString(),
-        }, { onConflict: 'url' })
-        if (!error) saved++
-      } catch { /* skip */ }
+      if (await saveNewsItem({ ...article, source: '36氪', category: 'AI算力', importance: 3 })) saved++
     }
 
     return { source: '36氪', count: saved }
@@ -104,7 +88,7 @@ async function crawl36kr(): Promise<CrawlResult> {
   }
 }
 
-// Crawl 机器之心
+// 2. 机器之心
 async function crawlJiQizhixin(): Promise<CrawlResult> {
   try {
     const res = await fetchWithTimeout('https://www.jiqizhixin.com/', 15000)
@@ -112,7 +96,6 @@ async function crawlJiQizhixin(): Promise<CrawlResult> {
     const html = await res.text()
 
     const articles: { title: string; url: string }[] = []
-    // Look for article cards
     const cardRegex = /<a[^>]+href="(https?:\/\/www\.jiqizhixin\.com\/article\/[^"]+)"[^>]*>[\s\S]*?<[^>]+class="[^"]*title[^"]*"[^>]*>([\s\S]*?)<\/[^>]+>/gi
     let match
 
@@ -135,7 +118,7 @@ async function crawlJiQizhixin(): Promise<CrawlResult> {
   }
 }
 
-// Crawl 量子位
+// 3. 量子位
 async function crawlQbitAI(): Promise<CrawlResult> {
   try {
     const res = await fetchWithTimeout('https://www.qbitai.com/', 15000)
@@ -165,7 +148,7 @@ async function crawlQbitAI(): Promise<CrawlResult> {
   }
 }
 
-// Crawl 财联社电报
+// 4. 财联社电报
 async function crawlCailian(): Promise<CrawlResult> {
   try {
     const res = await fetchWithTimeout('https://www.cls.cn/telegraph', 15000)
@@ -173,8 +156,6 @@ async function crawlCailian(): Promise<CrawlResult> {
     const html = await res.text()
 
     const items: { title: string; url: string }[] = []
-
-    // Look for telegraph items
     const itemRegex = /<div[^>]+class="[^"]*telegraph-item[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi
     let match
 
@@ -200,30 +181,218 @@ async function crawlCailian(): Promise<CrawlResult> {
   }
 }
 
-// Main crawl handler
+// 5. IT之家 - AI 板块
+async function crawlITHome(): Promise<CrawlResult> {
+  try {
+    const res = await fetchWithTimeout('https://www.ithome.com/list/ai/', 15000)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const html = await res.text()
+
+    const articles: { title: string; url: string; published_at?: string }[] = []
+    // IT之家列表页文章链接
+    const linkRegex = /<a[^>]+href="(https?:\/\/www\.ithome\.com\/\d\/\d{3}\/\d{3}\.htm)"[^>]*>([^<]+)<\/a>/gi
+    let match
+
+    while ((match = linkRegex.exec(html)) !== null && articles.length < 20) {
+      const url = match[1]
+      const title = match[2].trim()
+      if (title.length > 5 && !articles.find(a => a.url === url)) {
+        articles.push({ title, url })
+      }
+    }
+
+    let saved = 0
+    for (const article of articles) {
+      if (await saveNewsItem({ ...article, source: 'IT之家', category: 'AI算力', importance: 3 })) saved++
+    }
+
+    return { source: 'IT之家', count: saved }
+  } catch (e: any) {
+    return { source: 'IT之家', count: 0, error: e.message }
+  }
+}
+
+// 6. 雷锋网 - AI 频道
+async function crawlLeifeng(): Promise<CrawlResult> {
+  try {
+    const res = await fetchWithTimeout('https://www.leiphone.com/category/ai', 15000)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const html = await res.text()
+
+    const articles: { title: string; url: string }[] = []
+    const linkRegex = /<a[^>]+href="(https?:\/\/www\.leiphone\.com\/category\/\w+\/\d+\.html)"[^>]*>\s*<[^>]*>\s*([^<]+)<\/[^>]*>/gi
+    let match
+
+    while ((match = linkRegex.exec(html)) !== null && articles.length < 20) {
+      const url = match[1]
+      const title = match[2].trim()
+      if (title.length > 5 && !articles.find(a => a.url === url)) {
+        articles.push({ title, url })
+      }
+    }
+
+    let saved = 0
+    for (const article of articles) {
+      if (await saveNewsItem({ ...article, source: '雷锋网', category: 'AI应用', importance: 3 })) saved++
+    }
+
+    return { source: '雷锋网', count: saved }
+  } catch (e: any) {
+    return { source: '雷锋网', count: 0, error: e.message }
+  }
+}
+
+// 7. 半导体行业观察
+async function crawlICViews(): Promise<CrawlResult> {
+  try {
+    const res = await fetchWithTimeout('https://www.icviews.cn/', 15000)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const html = await res.text()
+
+    const articles: { title: string; url: string }[] = []
+    const linkRegex = /<a[^>]+href="(https?:\/\/www\.icviews\.cn\/\w+\/\d+\.html)"[^>]*>([^<]+)<\/a>/gi
+    let match
+
+    while ((match = linkRegex.exec(html)) !== null && articles.length < 20) {
+      const url = match[1]
+      const title = match[2].trim()
+      if (title.length > 5 && !articles.find(a => a.url === url)) {
+        articles.push({ title, url })
+      }
+    }
+
+    let saved = 0
+    for (const article of articles) {
+      if (await saveNewsItem({ ...article, source: '半导体行业观察', category: '半导体', importance: 3 })) saved++
+    }
+
+    return { source: '半导体行业观察', count: saved }
+  } catch (e: any) {
+    return { source: '半导体行业观察', count: 0, error: e.message }
+  }
+}
+
+// 8. 快科技 - AI 板块
+async function crawlMyDrivers(): Promise<CrawlResult> {
+  try {
+    const res = await fetchWithTimeout('https://www.mydrivers.com/newsclass/1162.htm', 15000)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const html = await res.text()
+
+    const articles: { title: string; url: string }[] = []
+    const linkRegex = /<a[^>]+href="(https?:\/\/news\.mydrivers\.com\/\d\/\d{3}\/\d{3}\.html)"[^>]*>([^<]+)<\/a>/gi
+    let match
+
+    while ((match = linkRegex.exec(html)) !== null && articles.length < 20) {
+      const url = match[1]
+      const title = match[2].trim()
+      if (title.length > 5 && !articles.find(a => a.url === url)) {
+        articles.push({ title, url })
+      }
+    }
+
+    let saved = 0
+    for (const article of articles) {
+      if (await saveNewsItem({ ...article, source: '快科技', category: 'AI算力', importance: 3 })) saved++
+    }
+
+    return { source: '快科技', count: saved }
+  } catch (e: any) {
+    return { source: '快科技', count: 0, error: e.message }
+  }
+}
+
+// 9. 东方财富 - 科技要闻（RSS API）
+async function crawlEastmoney(): Promise<CrawlResult> {
+  try {
+    const res = await fetchWithTimeout('https://data.eastmoney.com/telegraphy/default.html', 15000)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const html = await res.text()
+
+    const items: { title: string; url: string }[] = []
+    // 东方财富电报页面
+    const itemRegex = /<li[^>]*class="[^"]*telegraph-item[^"]*"[^>]*>[\s\S]*?<p[^>]*>([\s\S]*?)<\/p>/gi
+    let match
+
+    while ((match = itemRegex.exec(html)) !== null && items.length < 20) {
+      const title = match[1].replace(/<[^>]*>/g, '').trim()
+      if (title.length > 5 && !items.find(i => i.title === title)) {
+        items.push({ title, url: `https://data.eastmoney.com/telegraphy/${Date.now()}` })
+      }
+    }
+
+    let saved = 0
+    for (const item of items) {
+      if (await saveNewsItem({ ...item, source: '东方财富', category: '市场快讯', importance: 4 })) saved++
+    }
+
+    return { source: '东方财富', count: saved }
+  } catch (e: any) {
+    return { source: '东方财富', count: 0, error: e.message }
+  }
+}
+
+// 10. 网易科技
+async function crawlNeteaseTech(): Promise<CrawlResult> {
+  try {
+    const res = await fetchWithTimeout('https://tech.163.com/', 15000)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const html = await res.text()
+
+    const articles: { title: string; url: string }[] = []
+    const linkRegex = /<a[^>]+href="(https?:\/\/tech\.163\.com\/\d{2}\/\d{4}\/\d{2}\/[^"]+)"[^>]*>([^<]+)<\/a>/gi
+    let match
+
+    while ((match = linkRegex.exec(html)) !== null && articles.length < 20) {
+      const url = match[1]
+      const title = match[2].trim()
+      if (title.length > 5 && !articles.find(a => a.url === url)) {
+        articles.push({ title, url })
+      }
+    }
+
+    let saved = 0
+    for (const article of articles) {
+      if (await saveNewsItem({ ...article, source: '网易科技', category: '综合', importance: 3 })) saved++
+    }
+
+    return { source: '网易科技', count: saved }
+  } catch (e: any) {
+    return { source: '网易科技', count: 0, error: e.message }
+  }
+}
+
+// ======== Main Handler ========
+
+const ALL_CRAWLERS: Record<string, () => Promise<CrawlResult>> = {
+  '36kr': crawl36kr,
+  'jiqizhixin': crawlJiQizhixin,
+  'qbitai': crawlQbitAI,
+  'cailian': crawlCailian,
+  'ithome': crawlITHome,
+  'leifeng': crawlLeifeng,
+  'icviews': crawlICViews,
+  'mydrivers': crawlMyDrivers,
+  'eastmoney': crawlEastmoney,
+  'netease': crawlNeteaseTech,
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({ sources: 'all' }))
     const { sources = 'all' } = body
 
-    const crawlers: Record<string, () => Promise<CrawlResult>> = {
-      '36kr': crawl36kr,
-      'jiqizhixin': crawlJiQizhixin,
-      'qbitai': crawlQbitAI,
-      'cailian': crawlCailian,
-    }
-
     let targets: Record<string, () => Promise<CrawlResult>>
     if (sources === 'all') {
-      targets = crawlers
+      targets = ALL_CRAWLERS
     } else if (Array.isArray(sources)) {
       targets = Object.fromEntries(
-        Object.entries(crawlers).filter(([k]) => sources.includes(k))
+        Object.entries(ALL_CRAWLERS).filter(([k]) => sources.includes(k))
       ) as any
-    } else if (typeof sources === 'string' && crawlers[sources]) {
-      targets = { [sources]: crawlers[sources] }
+    } else if (typeof sources === 'string' && ALL_CRAWLERS[sources]) {
+      targets = { [sources]: ALL_CRAWLERS[sources] }
     } else {
-      targets = crawlers
+      targets = ALL_CRAWLERS
     }
 
     const results: CrawlResult[] = []
