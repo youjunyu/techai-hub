@@ -4,10 +4,10 @@ import { supabaseAdmin } from '@/lib/supabase'
 // GET /api/news/[id] - Get single news item
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
 
     const { data: news, error } = await supabaseAdmin
       .from('tai_news')

@@ -3,7 +3,7 @@
  * Sends daily reports via nodemailer
  */
 
-import nodemailer from 'nodemailer'
+import nodemailer, { Transporter } from 'nodemailer'
 
 const EMAIL_HOST = process.env.EMAIL_HOST || 'smtp.qq.com'
 const EMAIL_PORT = parseInt(process.env.EMAIL_PORT || '587')
@@ -11,7 +11,7 @@ const EMAIL_USER = process.env.EMAIL_USER
 const EMAIL_PASS = process.env.EMAIL_PASS
 const EMAIL_FROM = process.env.EMAIL_FROM || EMAIL_USER
 
-let transporter: nodemailer.Transporter | null = null
+let transporter: Transporter | null = null
 
 function getTransporter() {
   if (!transporter) {

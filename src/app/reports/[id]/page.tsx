@@ -1,21 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { supabaseClient } from '@/lib/supabase'
 
-export default function ReportDetailPage({ params }: { params: { id: string } }) {
+export default function ReportDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [report, setReport] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`/api/reports/${params.id}`)
+    fetch(`/api/reports/${id}`)
       .then(r => r.json())
       .then(data => {
         setReport(data.report)
         setLoading(false)
       })
-  }, [params.id])
+  }, [id])
 
   if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center">加载中...</div>
   if (!report) return <div className="min-h-screen bg-gray-50 flex items-center justify-center">日报不存在</div>

@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error(
@@ -15,7 +15,7 @@ export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
 // Admin client for server-side only (bypasses RLS)
 // Lazily initialized to avoid accessing server-only env vars in the browser
 let _supabaseAdmin: ReturnType<typeof createClient> | null = null
-export function supabaseAdmin() {
+function getSupabaseAdmin() {
   if (!_supabaseAdmin) {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     if (!supabaseServiceKey) {
@@ -27,3 +27,13 @@ export function supabaseAdmin() {
   }
   return _supabaseAdmin
 }
+
+// Export a callable that also supports property access (for backward compat with both supabaseAdmin() and supabaseAdmin.from)
+export const supabaseAdmin: any = new Proxy(
+  getSupabaseAdmin,
+  {
+    get(_target, prop) {
+      return Reflect.get(getSupabaseAdmin(), prop)
+    },
+  }
+)

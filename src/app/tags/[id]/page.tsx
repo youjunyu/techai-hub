@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { supabaseClient } from '@/lib/supabase'
 
@@ -28,7 +28,8 @@ interface TagDetail {
   }[]
 }
 
-export default function TagDetailPage({ params }: { params: { id: string } }) {
+export default function TagDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [tag, setTag] = useState<TagDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [aiAnalysis, setAiAnalysis] = useState('')
@@ -36,10 +37,10 @@ export default function TagDetailPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     loadTag()
-  }, [params.id])
+  }, [id])
 
   const loadTag = async () => {
-    const res = await fetch(`/api/tags/${params.id}`)
+    const res = await fetch(`/api/tags/${id}`)
     const data = await res.json()
     if (res.ok) {
       setTag(data.tag)

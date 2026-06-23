@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { supabaseClient } from '@/lib/supabase'
 
@@ -24,16 +24,17 @@ interface ChainDetail {
   }[]
 }
 
-export default function ChainDetailPage({ params }: { params: { id: string } }) {
+export default function ChainDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [chain, setChain] = useState<ChainDetail | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadChain()
-  }, [params.id])
+  }, [id])
 
   const loadChain = async () => {
-    const res = await fetch(`/api/chains/${params.id}`)
+    const res = await fetch(`/api/chains/${id}`)
     const data = await res.json()
     if (res.ok) setChain(data.chain)
     setLoading(false)

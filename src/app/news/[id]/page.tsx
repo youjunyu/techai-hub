@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { supabaseClient } from '@/lib/supabase'
 import Link from 'next/link'
 
@@ -19,18 +19,19 @@ interface NewsDetail {
   created_at: string
 }
 
-export default function NewsDetailPage({ params }: { params: { id: string } }) {
+export default function NewsDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [news, setNews] = useState<NewsDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     loadNews()
-  }, [params.id])
+  }, [id])
 
   const loadNews = async () => {
     try {
-      const res = await fetch(`/api/news/${params.id}`)
+      const res = await fetch(`/api/news/${id}`)
       const data = await res.json()
       if (!res.ok) {
         setError(data.error || '加载失败')

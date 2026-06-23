@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     // Get stock counts for each tag
     const tagsWithStocks = await Promise.all(
-      (tags || []).map(async (tag) => {
+      (tags || []).map(async (tag: any) => {
         const { data: stocks } = await supabaseAdmin
           .from('tai_stocks')
           .select('id')

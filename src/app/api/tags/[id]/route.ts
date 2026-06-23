@@ -4,10 +4,10 @@ import { supabaseAdmin } from '@/lib/supabase'
 // GET /api/tags/[id] - Get tag detail with stocks and related news
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
 
     // Get tag with stocks
     const { data: tag, error: tagError } = await supabaseAdmin

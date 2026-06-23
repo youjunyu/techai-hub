@@ -40,7 +40,7 @@ export default function TagsPage() {
         headers: { 'Authorization': `Bearer ${token}` },
       })
       const followsData = await followsRes.json()
-      const tagFollows = new Set((followsData.follows || [])
+      const tagFollows = new Set<string>((followsData.follows || [])
         .filter((f: any) => f.follow_type === 'tag')
         .map((f: any) => f.target_id))
       setFollows(tagFollows)
