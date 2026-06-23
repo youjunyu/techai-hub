@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
 
     const { name, report_email } = await request.json()
 
-    const { error } = await supabaseAdmin
+    const { error } = await supabaseAdmin()
       .from('tai_users')
       .update({
         name: name || undefined,

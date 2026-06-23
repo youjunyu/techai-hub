@@ -9,7 +9,7 @@ export async function GET(
   try {
     const { id } = await params
 
-    const { data: news, error } = await supabaseAdmin
+    const { data: news, error } = await supabaseAdmin()
       .from('tai_news')
       .select('*')
       .eq('id', id)
@@ -20,7 +20,7 @@ export async function GET(
     }
 
     // Increment view count
-    await supabaseAdmin
+    await supabaseAdmin()
       .from('tai_news')
       .update({ view_count: (news.view_count || 0) + 1 })
       .eq('id', id)

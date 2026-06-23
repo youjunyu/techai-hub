@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const category = searchParams.get('category')
 
-    let query = supabaseAdmin
+    let query = supabaseAdmin()
       .from('tai_tags')
       .select('*')
       .order('created_at', { ascending: false })
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Get stock counts for each tag
     const tagsWithStocks = await Promise.all(
       (tags || []).map(async (tag: any) => {
-        const { data: stocks } = await supabaseAdmin
+        const { data: stocks } = await supabaseAdmin()
           .from('tai_stocks')
           .select('id')
           .eq('tag_id', tag.id)

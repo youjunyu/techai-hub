@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    let query = supabaseAdmin
+    let query = supabaseAdmin()
       .from('tai_news')
       .select('*')
       .order('published_at', { ascending: false })
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       is_processed: false
     }))
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin()
       .from('tai_news')
       .insert(rows)
       .select()

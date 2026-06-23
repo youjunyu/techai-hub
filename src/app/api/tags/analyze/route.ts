@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get stocks for this tag
-    const { data: tagStocks } = await supabaseAdmin
+    const { data: tagStocks } = await supabaseAdmin()
       .from('tai_tags')
       .select(`
         *,
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const stocks = (tagStocks as any)?.stocks || []
 
     // Get recent news mentioning this tag
-    const { data: news } = await supabaseAdmin
+    const { data: news } = await supabaseAdmin()
       .from('tai_news')
       .select('title, summary, importance, published_at')
       .or(`tags.cs.{${tagName}},title.ilike.%${tagName}%`)

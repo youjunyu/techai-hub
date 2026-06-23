@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert into our users table
-    const { error: profileError } = await supabaseAdmin
+    const { error: profileError } = await supabaseAdmin()
       .from('tai_users')
       .insert({
         id: data.user.id,

@@ -3,7 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 
 export async function GET() {
   try {
-    const { data: chains, error } = await supabaseAdmin
+    const { data: chains, error } = await supabaseAdmin()
       .from('tai_industry_chains')
       .select('*, creator:tai_users(name)')
       .eq('is_public', true)
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     const { name, description, is_public, layers } = await request.json()
     
-    const { data: chain, error } = await supabaseAdmin
+    const { data: chain, error } = await supabaseAdmin()
       .from('tai_industry_chains')
       .insert({
         name,

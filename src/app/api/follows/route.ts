@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: follows, error } = await supabaseAdmin
+    const { data: follows, error } = await supabaseAdmin()
       .from('tai_user_follows')
       .select('*')
       .eq('user_id', user.id)
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'follow_type and target_id required' }, { status: 400 })
     }
 
-    const { data: follow, error } = await supabaseAdmin
+    const { data: follow, error } = await supabaseAdmin()
       .from('tai_user_follows')
       .insert({
         user_id: user.id,
@@ -93,7 +93,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'follow_id required' }, { status: 400 })
     }
 
-    const { error } = await supabaseAdmin
+    const { error } = await supabaseAdmin()
       .from('tai_user_follows')
       .delete()
       .eq('id', follow_id)

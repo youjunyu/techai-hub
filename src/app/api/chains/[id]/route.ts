@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const { data: chain, error } = await supabaseAdmin
+    const { data: chain, error } = await supabaseAdmin()
       .from('tai_industry_chains')
       .select(`
         *,

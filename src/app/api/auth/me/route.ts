@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await supabaseAdmin()
       .from('tai_users')
       .select('*')
       .eq('id', user.id)

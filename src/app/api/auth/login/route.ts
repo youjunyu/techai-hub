@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user profile
-    const { data: profile } = await supabaseAdmin
+    const { data: profile } = await supabaseAdmin()
       .from('tai_users')
       .select('*')
       .eq('id', data.user.id)

@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 // GET - List all tags
 export async function GET() {
   try {
-    const { data: tags, error } = await supabaseAdmin
+    const { data: tags, error } = await supabaseAdmin()
       .from('tai_tags')
       .select('*')
       .order('category')
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'name and category required' }, { status: 400 })
     }
 
-    const { data: tag, error } = await supabaseAdmin
+    const { data: tag, error } = await supabaseAdmin()
       .from('tai_tags')
       .insert({ name, category, description, color })
       .select()

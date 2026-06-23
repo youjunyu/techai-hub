@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const { limit = 20, category } = body
 
-    let query = supabaseAdmin
+    let query = supabaseAdmin()
       .from('tai_news')
       .select('id, title, content')
       .or('summary.is.null,summary.eq.')
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
       try {
         const summary = await generateNewsSummary(item.title, item.content || item.title)
         if (summary) {
-          await supabaseAdmin
+          await supabaseAdmin()
             .from('tai_news')
             .update({ summary })
             .eq('id', item.id)

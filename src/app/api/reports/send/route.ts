@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get report
-    const { data: report, error: reportError } = await supabaseAdmin
+    const { data: report, error: reportError } = await supabaseAdmin()
       .from('tai_daily_reports')
       .select('*')
       .eq('id', reportId)
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's email
-    const { data: userData } = await supabaseAdmin
+    const { data: userData } = await supabaseAdmin()
       .from('tai_users')
       .select('report_email, name')
       .eq('id', user.id)
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Mark as sent
-    await supabaseAdmin
+    await supabaseAdmin()
       .from('tai_daily_reports')
       .update({ is_sent: true, sent_at: new Date().toISOString() })
       .eq('id', reportId)

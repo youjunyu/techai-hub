@@ -54,7 +54,7 @@ export async function POST() {
 
     // 1. Insert tags
     for (const tag of SAMPLE_TAGS) {
-      const { error } = await supabaseAdmin
+      const { error } = await supabaseAdmin()
         .from('tai_tags')
         .upsert(tag, { onConflict: 'name' })
       if (error) {
@@ -65,7 +65,7 @@ export async function POST() {
     }
 
     // 2. Get tag IDs for linking
-    const { data: allTags } = await supabaseAdmin
+    const { data: allTags } = await supabaseAdmin()
       .from('tai_tags')
       .select('id, name')
     
@@ -73,7 +73,7 @@ export async function POST() {
 
     // 3. Insert stocks with tag links
     for (const stock of SAMPLE_STOCKS) {
-      const { data: existingStock } = await supabaseAdmin
+      const { data: existingStock } = await supabaseAdmin()
         .from('tai_stocks')
         .select('id')
         .eq('code', stock.code)
@@ -82,12 +82,12 @@ export async function POST() {
       let stockId: string
       if (existingStock) {
         stockId = existingStock.id
-        await supabaseAdmin
+        await supabaseAdmin()
           .from('tai_stocks')
           .update({ name: stock.name, market: stock.market, sector: stock.sector, core_logic: stock.core_logic, tags: stock.tags })
           .eq('id', stockId)
       } else {
-        const { data: newStock, error } = await supabaseAdmin
+        const { data: newStock, error } = await supabaseAdmin()
           .from('tai_stocks')
           .insert({
             name: stock.name,
@@ -111,7 +111,7 @@ export async function POST() {
       const stockTags = stock.tags.filter((t) => tagMap.has(t))
       if (stockTags.length > 0) {
         // Remove old links
-        await supabaseAdmin
+        await supabaseAdmin()
           .from('tai_tag_stocks')
           .delete()
           .eq('stock_id', stockId)
@@ -121,7 +121,7 @@ export async function POST() {
           tag_id: tagMap.get(tagName)!,
           stock_id: stockId,
         }))
-        const { error: linkError } = await supabaseAdmin
+        const { error: linkError } = await supabaseAdmin()
           .from('tai_tag_stocks')
           .upsert(links, { onConflict: 'tag_id,stock_id' })
         

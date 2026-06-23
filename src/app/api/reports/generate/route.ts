@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's report email
-    const { data: userData } = await supabaseAdmin
+    const { data: userData } = await supabaseAdmin()
       .from('tai_users')
       .select('report_email, name')
       .eq('id', user.id)

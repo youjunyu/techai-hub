@@ -10,7 +10,7 @@ export async function GET(
     const { id } = await params
 
     // Get tag with stocks
-    const { data: tag, error: tagError } = await supabaseAdmin
+    const { data: tag, error: tagError } = await supabaseAdmin()
       .from('tai_tags')
       .select(`
         *,
@@ -24,7 +24,7 @@ export async function GET(
     }
 
     // Get related news
-    const { data: news } = await supabaseAdmin
+    const { data: news } = await supabaseAdmin()
       .from('tai_news')
       .select('id, title, source, importance, published_at')
       .or(`tags.cs.{${tag.name}},title.ilike.%${tag.name}%`)

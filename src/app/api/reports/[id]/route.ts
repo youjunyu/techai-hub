@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const { data: report, error } = await supabaseAdmin
+    const { data: report, error } = await supabaseAdmin()
       .from('tai_daily_reports')
       .select('*')
       .eq('id', id)

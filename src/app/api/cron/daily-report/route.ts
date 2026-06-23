@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all users
-    const { data: users, error: usersError } = await supabaseAdmin
+    const { data: users, error: usersError } = await supabaseAdmin()
       .from('tai_users')
       .select('id, report_email')
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       try {
         // Check if report already exists for today
         const today = new Date().toISOString().split('T')[0]
-        const { data: existing } = await supabaseAdmin
+        const { data: existing } = await supabaseAdmin()
           .from('tai_daily_reports')
           .select('id, is_sent')
           .eq('user_id', user.id)

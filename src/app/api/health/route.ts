@@ -10,7 +10,7 @@ export async function GET() {
 
   // Check Supabase connection
   try {
-    const { error } = await supabaseAdmin
+    const { error } = await supabaseAdmin()
       .from('tai_users')
       .select('count')
       .limit(1)

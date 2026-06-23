@@ -112,7 +112,7 @@ export async function generateDailyReport(userId: string, reportEmail: string): 
     const oneDayAgo = new Date()
     oneDayAgo.setDate(oneDayAgo.getDate() - 1)
 
-    const { data: news, error: newsError } = await supabaseAdmin
+    const { data: news, error: newsError } = await supabaseAdmin()
       .from('tai_news')
       .select('*')
       .gte('published_at', oneDayAgo.toISOString())
@@ -123,7 +123,7 @@ export async function generateDailyReport(userId: string, reportEmail: string): 
     if (newsError) throw newsError
 
     // 2. Fetch tags with stocks
-    const { data: tags, error: tagsError } = await supabaseAdmin
+    const { data: tags, error: tagsError } = await supabaseAdmin()
       .from('tai_tags')
       .select(`
         *,
@@ -133,7 +133,7 @@ export async function generateDailyReport(userId: string, reportEmail: string): 
     if (tagsError) throw tagsError
 
     // 3. Fetch industry chains with layers
-    const { data: chains, error: chainsError } = await supabaseAdmin
+    const { data: chains, error: chainsError } = await supabaseAdmin()
       .from('tai_industry_chains')
       .select(`
         *,
@@ -202,7 +202,7 @@ ${chainContext || '暂无产业链数据'}
 
     // 7. Save report to database
     const today = new Date().toISOString().split('T')[0]
-    const { data: report, error: saveError } = await supabaseAdmin
+    const { data: report, error: saveError } = await supabaseAdmin()
       .from('tai_daily_reports')
       .insert({
         user_id: userId,

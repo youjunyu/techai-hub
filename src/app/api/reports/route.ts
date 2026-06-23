@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    let query = supabaseAdmin
+    let query = supabaseAdmin()
       .from('tai_daily_reports')
       .select('*')
       .order('report_date', { ascending: false })

@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 // GET - List all stocks
 export async function GET() {
   try {
-    const { data: stocks, error } = await supabaseAdmin
+    const { data: stocks, error } = await supabaseAdmin()
       .from('tai_stocks')
       .select('*')
       .order('sector')
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'name and code required' }, { status: 400 })
     }
 
-    const { data: stock, error } = await supabaseAdmin
+    const { data: stock, error } = await supabaseAdmin()
       .from('tai_stocks')
       .insert({ name, code, market, sector, description, core_logic, tags })
       .select()
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     // If tags provided, link them
     if (tags && tags.length > 0) {
-      const { data: tagRecords } = await supabaseAdmin
+      const { data: tagRecords } = await supabaseAdmin()
         .from('tai_tags')
         .select('id')
         .in('name', tags)
